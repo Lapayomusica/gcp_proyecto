@@ -3,6 +3,10 @@
 # (Opcional) Crea un proyecto nuevo o selecciona uno existente
 gcloud projects create [ID_DEL_PROYECTO]
 gcloud config set project [ID_DEL_PROYECTO]
+PROJECT_ID=$(gcloud config get-value project)
+
+gcloud config set compute/zone us-central1-a
+gcloud config set compute/region us-central1
 
 # Habilita las APIs necesarias
 gcloud services enable cloudfunctions.googleapis.com pubsub.googleapis.com firestore.googleapis.com
@@ -16,25 +20,26 @@ gcloud pubsub topics create recargas
 git clone https://github.com/Lapayomusica/gcp_proyecto.git
 
 
-4. cd ~/gcp_proyecto/fronted
+4. cd gcp_proyecto/src/frontend
      Frontend simple (HTML + JS) (NOTA: ESTO DEBE ESTAR ARRIBA REVISAR)
 
      Despliega el frontend en Cloud Storage (hosting gratuito)
 
-     gsutil mb gs://[BUCKET-NOMBRE-UNICO]
-     gsutil cp index.html gs://[BUCKET-NOMBRE-UNICO]
-     gsutil web set -m index.html gs://[BUCKET-NOMBRE-UNICO]
-     gsutil iam ch allUsers:objectViewer gs://[BUCKET-NOMBRE-UNICO]
+     gsutil mb gs://$PROJECT_ID-bucket-html-01
+     gsutil cp index.html gs://$PROJECT_ID-bucket-html-01
+     gsutil web set -m index.html gs://$PROJECT_ID-bucket-html-01
+     gsutil iam ch allUsers:objectViewer gs://$PROJECT_ID-bucket-html-01
 
      Accede por:
-     http://storage.googleapis.com/[BUCKET-NOMBRE-UNICO]/index.html
+     http://storage.googleapis.com/$PROJECT_ID-bucket-html-01/index.html
 
 5. Cloud Function HTTP para recibir recargas (frontend → backend)
-    cd ~/gcp_proyecto/cloud-functions_recarga_request
+    cd ../cloud-functions_recarga_request
 
     Despliegue en Cloud Run:
-    Construye y sube la imagen:
-    gcloud builds submit --tag gcr.io/PROYECTO/recarga-backend
+    Construye y sube la imagen
+
+    gcloud builds submit --tag gcr.io/$PROJECT_ID/recarga-backend
     Despliega en Cloud Run:
     gcloud run deploy recarga-backend \
       --image gcr.io/PROYECTO/recarga-backend \
@@ -44,7 +49,7 @@ git clone https://github.com/Lapayomusica/gcp_proyecto.git
 
 
 6. Cloud Function backend (procesa la recarga y guarda en Firestore)
-cd ~/gcp_proyecto/microservicio_procesar_recarga
+cd ../microservicio_procesar_recarga
   Despliegue
   gcloud functions deploy procesarRecarga \
     --runtime nodejs20 \
@@ -62,7 +67,7 @@ cd ~/gcp_proyecto/microservicio_procesar_recarga
 
 
 
-7. cd ~/gcp_proyecto/microservicio_registro_de_ventas
+7. cd ../microservicio_registro_de_ventas
     Construir y subir la imagen a Artifact Registry:
 
     gcloud artifacts repositories create microservicios --repository-format=docker --location=us-central1
@@ -84,7 +89,7 @@ cd ~/gcp_proyecto/microservicio_procesar_recarga
 
     Firestore esta enables desde el primer punto
 
-8. cd ~/gcp_proyecto/microservicio_de_actualizacion_de_saldo
+8. cd ../microservicio_de_actualizacion_de_saldo
     Despliega en GKE
     kubectl apply -f actualizar-saldo-deployment.yaml
     kubectl apply -f plataforma-recargas-ingress.yaml  # solo si es nuevo o cambió
