@@ -1,0 +1,189 @@
+2. Procesamiento Asíncrono de Recarga Almacena el mensaje (número + monto) en un sistema de mensajería. Un microservicio serverless debe suscribirse a este tópico para procesar el evento. 💡 Recomendación GCP: Usa Pub/Sub para gestionar la mensajería asincrónica (tópico gratuito incluido). Crea una Cloud Function o Cloud Run (ambos con cuotas gratuitas) como suscriptor del tópico Pub/Sub.
+
+¡Perfecto! Aquí tienes una guía práctica y directa para cumplir ese requerimiento usando los servicios gratuitos de GCP.
+
+Resumen del flujo
+Backend HTTP (App Engine o Cloud Run) publica un mensaje (número, monto) en un tópico de Pub/Sub.
+Cloud Function (o Cloud Run) está suscrita a ese tópico y procesa cada mensaje recibido.
+1. Crear el tópico de Pub/Sub
+gcloud pubsub topics create recargas
+2. Backend HTTP publica en Pub/Sub
+(Ejemplo Node.js Express, podrías usarlo en Cloud Run o App Engine)
+
+const express = require('express');
+const {PubSub} = require('@google-cloud/pubsub');
+const pubsub = new PubSub();
+const app = express();
+app.use(express.json());
+
+app.post('/recarga', async (req, res) => {
+  const {numero, monto} = req.body;
+  if (!numero || !monto) return res.status(400).send('Datos incompletos');
+  await pubsub.topic('recargas').publishMessage({ json: { numero, monto, fecha: new Date().toISOString() }});
+  res.status(200).send('Recarga recibida');
+});
+
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => console.log(`Escuchando en ${PORT}`));
+3. Microservicio serverless suscriptor (Cloud Function)
+index.js
+
+exports.procesarRecarga = async (message, context) => {
+  // Decodifica el mensaje recibido de Pub/Sub
+  let data;
+  try {
+    data = message.json || JSON.parse(Buffer.from(message.data, 'base64').toString());
+  } catch (e) {
+    console.error("Error al parsear mensaje:", e);
+    return;
+  }
+  // Aquí procesas la recarga (ejemplo: imprime/loguea)
+  console.log(`Procesando recarga para: ${data.numero}, monto: ${data.monto}, fecha: ${data.fecha}`);
+  // ... lógica adicional, llamar a otros servicios, guardar en DB, etc.
+};
+Despliegue de la función:
+
+gcloud functions deploy procesarRecarga \
+  --runtime nodejs20 \
+  --trigger-topic recargas \
+  --region us-central1
+4. Prueba el flujo
+Haz un POST desde el frontend o Postman/curl al endpoint del backend HTTP.
+Pub/Sub recibirá el mensaje.
+La Cloud Function procesará automáticamente cualquier mensaje publicado en el tópico.
+Notas
+Puedes consultar los logs de la función en Cloud Logging.
+Si quieres almacenar el resultado en Firestore, agrega el código Firestore como en respuestas anteriores.
+Este patrón es 100% serverless y apto para el nivel gratuito de GCP.
+¿Te gustaría agregar el guardado en Firestore, usar Python, o necesitas ayuda para desplegar el backend HTTP? ¡Dímelo!
+
+Today, 10:04 AM
+
+
+
+
+3. Microservicio de Registro de Venta El mensaje procesado debe llamar a un microservicio desplegado en un pod (Kubernetes) que registre la recarga como una transacción en una base de datos NoSQL. 💡 Recomendación GCP: Utiliza Google Kubernetes Engine (GKE Autopilot o Estandard), que permite acceder al nivel gratuito de GKE con ciertos límites. Implementa el servicio de venta en un pod. Usa Firestore en modo nativo como base de datos NoSQL escalable y gestionada (cuota gratuita disponible). Expón el microservicio con un Ingress Controller utilizando HTTP Load Balancer (nivel gratuito).
+
+¡Perfecto! Aquí tienes una guía práctica para implementar el Microservicio de Registro de Venta en GKE, conectado a Firestore y expuesto vía Ingress, usando solo recursos gratuitos de Google Cloud.
+
+1. Microservicio de Registro de Venta: Node.js + Express (ejemplo)
+a) Código del microservicio
+index.js
+
+const express = require('express');
+const {Firestore} = require('@google-cloud/firestore');
+const app = express();
+const firestore = new Firestore();
+
+app.use(express.json());
+
+app.post('/registrar-venta', async (req, res) => {
+  const {numero, monto, fecha} = req.body;
+  if (!numero || !monto) return res.status(400).send("Datos incompletos");
+  await firestore.collection('ventas').add({
+    numero,
+    monto,
+    fecha: fecha || new Date().toISOString(),
+    status: 'procesada'
+  });
+  res.send('Venta registrada');
+});
+
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => console.log(`Servicio de Registro de Venta escuchando en ${PORT}`));
+package.json
+
+{
+  "name": "registro-venta",
+  "dependencies": {
+    "express": "^4.17.1",
+    "@google-cloud/firestore": "^7.0.0"
+  }
+}
+Dockerfile
+
+FROM node:20
+WORKDIR /usr/src/app
+COPY package*.json ./
+RUN npm install
+COPY . .
+CMD ["node", "index.js"]
+2. Construir y subir la imagen a Artifact Registry
+gcloud artifacts repositories create microservicios --repository-format=docker --location=us-central1
+docker build -t us-central1-docker.pkg.dev/PROYECTO/microservicios/registro-venta:latest .
+docker push us-central1-docker.pkg.dev/PROYECTO/microservicios/registro-venta:latest
+Cambia PROYECTO por tu ID de proyecto.
+
+3. Desplegar en GKE Autopilot o Standard
+registro-venta-deployment.yaml
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: registro-venta
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: registro-venta
+  template:
+    metadata:
+      labels:
+        app: registro-venta
+    spec:
+      containers:
+      - name: registro-venta
+        image: us-central1-docker.pkg.dev/PROYECTO/microservicios/registro-venta:latest
+        ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: registro-venta
+spec:
+  selector:
+    app: registro-venta
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
+4. Exponer con Ingress y HTTP Load Balancer
+registro-venta-ingress.yaml
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: registro-venta-ingress
+  annotations:
+    kubernetes.io/ingress.class: "gce"
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /registrar-venta
+        pathType: Prefix
+        backend:
+          service:
+            name: registro-venta
+            port:
+              number: 80
+5. Comandos de despliegue
+kubectl apply -f registro-venta-deployment.yaml
+kubectl apply -f registro-venta-ingress.yaml
+Cuando el Ingress esté disponible, obtén la IP con:
+
+kubectl get ingress
+Y prueba el servicio (por ejemplo, con curl):
+
+curl -X POST http://[EXTERNAL_IP]/registrar-venta \
+  -H "Content-Type: application/json" \
+  -d '{"numero":"5551234567","monto":50,"fecha":"2024-07-10T12:00:00Z"}'
+6. Firestore
+Inicializa Firestore en la consola GCP (elige modo nativo) si aún no lo hiciste.
+
+7. Buenas Prácticas (Opcional pero recomendado)
+Acceso seguro a Firestore: Usa Workload Identity para que tu pod acceda a Firestore sin claves.
+Logs: Todos los logs de Express irán automáticamente a Cloud Logging.
+Escalabilidad: GKE Autopilot escala por demanda y está dentro de la cuota gratuita para pequeños proyectos.
+¿Quieres el ejemplo de Workload Identity, el manifiesto para el microservicio de saldo, o ayuda para conectar el flujo completo?

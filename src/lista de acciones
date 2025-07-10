@@ -1,0 +1,142 @@
+#1. Creación del proyecto y activación de APIs
+
+# (Opcional) Crea un proyecto nuevo o selecciona uno existente
+gcloud projects create [ID_DEL_PROYECTO]
+gcloud config set project [ID_DEL_PROYECTO]
+
+# Habilita las APIs necesarias
+gcloud services enable cloudfunctions.googleapis.com pubsub.googleapis.com firestore.googleapis.com
+
+2. Crear el Topic de Pub/Sub
+gcloud pubsub topics create recargas
+
+---------------
+3. Cloud Function HTTP para recibir recargas (frontend → backend)
+index.js
+const {PubSub} = require('@google-cloud/pubsub');
+const pubsub = new PubSub();
+
+exports.recargaRequest = async (req, res) => {
+  // Permite CORS para pruebas frontend
+  res.set('Access-Control-Allow-Origin', '*');
+  if (req.method === "OPTIONS") {
+    res.set('Access-Control-Allow-Methods', 'POST');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.status(204).send('');
+    return;
+  }
+  const { numero, monto } = req.body;
+  if (!numero || !monto) return res.status(400).send('Datos incompletos');
+  const topic = pubsub.topic('recargas');
+  await topic.publishMessage({ json: { numero, monto, fecha: new Date().toISOString() }});
+  res.status(200).send('Solicitud recibida');
+};
+package.json
+{
+  "name": "recarga-request",
+  "dependencies": {
+    "@google-cloud/pubsub": "^4.0.0"
+  }
+}
+Despliegue
+gcloud functions deploy recargaRequest \
+  --runtime nodejs20 \
+  --region=us-central1 \
+  --trigger-http \
+  --allow-unauthenticated \
+  --entry-point=recargaRequest
+  --------------
+
+  4. Cloud Function backend (procesa la recarga y guarda en Firestore)
+  index.js
+  const {Firestore} = require('@google-cloud/firestore');
+  const firestore = new Firestore();
+
+  exports.procesarRecarga = async (message, context) => {
+    const data = message.json || JSON.parse(Buffer.from(message.data, 'base64').toString());
+    // Simula procesamiento
+    await firestore.collection('recargas').add({
+      numero: data.numero,
+      monto: data.monto,
+      fecha: data.fecha || new Date().toISOString(),
+      status: 'procesada'
+    });
+    console.log(`Recarga procesada para ${data.numero} por ${data.monto}`);
+  };
+  package.json
+  {
+    "name": "procesar-recarga",
+    "dependencies": {
+      "@google-cloud/firestore": "^7.0.0"
+    }
+  }
+  Despliegue
+  gcloud functions deploy procesarRecarga \
+    --runtime nodejs20 \
+    --region=us-central1 \
+    --trigger-topic=recargas \
+    --entry-point=procesarRecarga
+
+    5. Inicializa Firestore
+    En la consola GCP, ve a Firestore y selecciona modo Native o Datastore Native (elige Native para nuevos proyectos).
+
+    6. Frontend simple (HTML + JS)
+    Crea un archivo index.html así:
+
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+      <meta charset="UTF-8">
+      <title>Recarga Telefónica</title>
+    </head>
+    <body>
+      <h2>Recarga Telefónica</h2>
+      <form id="recargaForm">
+        <label>
+          Número telefónico:
+          <input type="tel" name="numero" required pattern="[0-9]{10,15}">
+        </label><br>
+        <label>
+          Monto de recarga:
+          <input type="number" name="monto" required min="1">
+        </label><br>
+        <button type="submit">Enviar recarga</button>
+      </form>
+      <p id="mensaje"></p>
+      <script>
+        document.getElementById('recargaForm').addEventListener('submit', async function(e) {
+          e.preventDefault();
+          const numero = this.numero.value;
+          const monto = this.monto.value;
+          document.getElementById('mensaje').textContent = "Enviando recarga...";
+          try {
+            const resp = await fetch('https://REGION-PROJECT_ID.cloudfunctions.net/recargaRequest', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({numero, monto})
+            });
+            if(resp.ok) document.getElementById('mensaje').textContent = "¡Recarga enviada!";
+            else document.getElementById('mensaje').textContent = "Error al enviar recarga.";
+          } catch {
+            document.getElementById('mensaje').textContent = "Error de conexión.";
+          }
+        });
+      </script>
+    </body>
+    </html>
+    Reemplaza https://REGION-PROJECT_ID.cloudfunctions.net/recargaRequest por la URL visible tras desplegar tu función.
+
+
+ -------
+
+ 7. Despliega el frontend en Cloud Storage (hosting gratuito)
+ gsutil mb gs://[BUCKET-NOMBRE-UNICO]
+ gsutil cp index.html gs://[BUCKET-NOMBRE-UNICO]
+ gsutil web set -m index.html gs://[BUCKET-NOMBRE-UNICO]
+ gsutil iam ch allUsers:objectViewer gs://[BUCKET-NOMBRE-UNICO]
+ Accede por:
+ http://storage.googleapis.com/[BUCKET-NOMBRE-UNICO]/index.html
+
+
+
+

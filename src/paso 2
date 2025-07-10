@@ -1,0 +1,53 @@
+Resumen del flujo
+Backend HTTP (App Engine o Cloud Run) publica un mensaje (número, monto) en un tópico de Pub/Sub.
+Cloud Function (o Cloud Run) está suscrita a ese tópico y procesa cada mensaje recibido.
+1. Crear el tópico de Pub/Sub
+gcloud pubsub topics create recargas
+2. Backend HTTP publica en Pub/Sub
+(Ejemplo Node.js Express, podrías usarlo en Cloud Run o App Engine)
+
+const express = require('express');
+const {PubSub} = require('@google-cloud/pubsub');
+const pubsub = new PubSub();
+const app = express();
+app.use(express.json());
+
+app.post('/recarga', async (req, res) => {
+  const {numero, monto} = req.body;
+  if (!numero || !monto) return res.status(400).send('Datos incompletos');
+  await pubsub.topic('recargas').publishMessage({ json: { numero, monto, fecha: new Date().toISOString() }});
+  res.status(200).send('Recarga recibida');
+});
+
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => console.log(`Escuchando en ${PORT}`));
+3. Microservicio serverless suscriptor (Cloud Function)
+index.js
+
+exports.procesarRecarga = async (message, context) => {
+  // Decodifica el mensaje recibido de Pub/Sub
+  let data;
+  try {
+    data = message.json || JSON.parse(Buffer.from(message.data, 'base64').toString());
+  } catch (e) {
+    console.error("Error al parsear mensaje:", e);
+    return;
+  }
+  // Aquí procesas la recarga (ejemplo: imprime/loguea)
+  console.log(`Procesando recarga para: ${data.numero}, monto: ${data.monto}, fecha: ${data.fecha}`);
+  // ... lógica adicional, llamar a otros servicios, guardar en DB, etc.
+};
+Despliegue de la función:
+
+gcloud functions deploy procesarRecarga \
+  --runtime nodejs20 \
+  --trigger-topic recargas \
+  --region us-central1
+4. Prueba el flujo
+Haz un POST desde el frontend o Postman/curl al endpoint del backend HTTP.
+Pub/Sub recibirá el mensaje.
+La Cloud Function procesará automáticamente cualquier mensaje publicado en el tópico.
+Notas
+Puedes consultar los logs de la función en Cloud Logging.
+Si quieres almacenar el resultado en Firestore, agrega el código Firestore como en respuestas anteriores.
+Este patrón es 100% serverless y apto para el nivel gratuito de GCP.
