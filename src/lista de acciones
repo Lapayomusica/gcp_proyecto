@@ -47,6 +47,31 @@ git clone https://github.com/Lapayomusica/gcp_proyecto.git
       --region us-central1 \
       --allow-unauthenticated
 
+AHORA AL PARECER TIENE QUE SER CON DOCKERFILE POR LO QUE SE DEBE AGREGAR EL Dockerfile y seguir estos pasos:
+               Dockerfile
+                    FROM node:20
+                    WORKDIR /usr/src/app
+                    COPY package*.json ./
+                    RUN npm install
+                    COPY . .
+                    CMD ["node", "index.js"]
+               # (Solo la primera vez) Crea el repositorio en Artifact Registry
+               gcloud artifacts repositories create microservicios --repository-format=docker --location=us-central1
+               
+               # Configura autenticación Docker
+               gcloud auth configure-docker us-central1-docker.pkg.dev
+               
+               # Construye y sube la imagen
+               docker build -t recarga-backend:latest .
+               docker tag recarga-backend:latest us-central1-docker.pkg.dev/MI_PROYECTO/microservicios/recarga-backend:latest
+               docker push us-central1-docker.pkg.dev/MI_PROYECTO/microservicios/recarga-backend:latest
+               
+               # Despliega en Cloud Run
+               gcloud run deploy recarga-backend \
+                 --image us-central1-docker.pkg.dev/MI_PROYECTO/microservicios/recarga-backend:latest \
+                 --platform managed \
+                 --region us-central1 \
+                 --allow-unauthenticated
 
 6. Cloud Function backend (procesa la recarga y guarda en Firestore)
 cd ../microservicio_procesar_recarga
@@ -64,6 +89,7 @@ cd ../microservicio_procesar_recarga
     Notas
     Puedes consultar los logs de la función en Cloud Logging.
 
+NOTA: ES LO MISMO DECIDIR SI ES UN CLOUD RUN O UN CALOUD FUNCTION (OJO ESO ES IMPORTANTE)
 
 
 
