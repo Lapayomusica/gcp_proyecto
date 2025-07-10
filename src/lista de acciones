@@ -11,65 +11,40 @@ gcloud services enable cloudfunctions.googleapis.com pubsub.googleapis.com fires
 gcloud pubsub topics create recargas
 
 ---------------
-3. Cloud Function HTTP para recibir recargas (frontend → backend)
-index.js
-const {PubSub} = require('@google-cloud/pubsub');
-const pubsub = new PubSub();
 
-exports.recargaRequest = async (req, res) => {
-  // Permite CORS para pruebas frontend
-  res.set('Access-Control-Allow-Origin', '*');
-  if (req.method === "OPTIONS") {
-    res.set('Access-Control-Allow-Methods', 'POST');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
-    res.status(204).send('');
-    return;
-  }
-  const { numero, monto } = req.body;
-  if (!numero || !monto) return res.status(400).send('Datos incompletos');
-  const topic = pubsub.topic('recargas');
-  await topic.publishMessage({ json: { numero, monto, fecha: new Date().toISOString() }});
-  res.status(200).send('Solicitud recibida');
-};
-package.json
-{
-  "name": "recarga-request",
-  "dependencies": {
-    "@google-cloud/pubsub": "^4.0.0"
-  }
-}
-Despliegue
-gcloud functions deploy recargaRequest \
-  --runtime nodejs20 \
-  --region=us-central1 \
-  --trigger-http \
-  --allow-unauthenticated \
-  --entry-point=recargaRequest
-  --------------
+3. Clone the repo con archivos necesarios
+git clone https://github.com/Lapayomusica/gcp_proyecto.git
 
-  4. Cloud Function backend (procesa la recarga y guarda en Firestore)
-  index.js
-  const {Firestore} = require('@google-cloud/firestore');
-  const firestore = new Firestore();
 
-  exports.procesarRecarga = async (message, context) => {
-    const data = message.json || JSON.parse(Buffer.from(message.data, 'base64').toString());
-    // Simula procesamiento
-    await firestore.collection('recargas').add({
-      numero: data.numero,
-      monto: data.monto,
-      fecha: data.fecha || new Date().toISOString(),
-      status: 'procesada'
-    });
-    console.log(`Recarga procesada para ${data.numero} por ${data.monto}`);
-  };
-  package.json
-  {
-    "name": "procesar-recarga",
-    "dependencies": {
-      "@google-cloud/firestore": "^7.0.0"
-    }
-  }
+4. cd ~/fronted
+     Frontend simple (HTML + JS) (NOTA: ESTO DEBE ESTAR ARRIBA REVISAR)
+
+     Despliega el frontend en Cloud Storage (hosting gratuito)
+
+     gsutil mb gs://[BUCKET-NOMBRE-UNICO]
+     gsutil cp index.html gs://[BUCKET-NOMBRE-UNICO]
+     gsutil web set -m index.html gs://[BUCKET-NOMBRE-UNICO]
+     gsutil iam ch allUsers:objectViewer gs://[BUCKET-NOMBRE-UNICO]
+
+     Accede por:
+     http://storage.googleapis.com/[BUCKET-NOMBRE-UNICO]/index.html
+
+5. Cloud Function HTTP para recibir recargas (frontend → backend)
+    cd ~/cloud-functions_recarga_request
+
+    Despliegue en Cloud Run:
+    Construye y sube la imagen:
+    gcloud builds submit --tag gcr.io/PROYECTO/recarga-backend
+    Despliega en Cloud Run:
+    gcloud run deploy recarga-backend \
+      --image gcr.io/PROYECTO/recarga-backend \
+      --platform managed \
+      --region us-central1 \
+      --allow-unauthenticated
+
+
+6. Cloud Function backend (procesa la recarga y guarda en Firestore)
+cd ~/microservicio_procesar_recarga
   Despliegue
   gcloud functions deploy procesarRecarga \
     --runtime nodejs20 \
@@ -77,66 +52,143 @@ gcloud functions deploy recargaRequest \
     --trigger-topic=recargas \
     --entry-point=procesarRecarga
 
-    5. Inicializa Firestore
-    En la consola GCP, ve a Firestore y selecciona modo Native o Datastore Native (elige Native para nuevos proyectos).
-
-    6. Frontend simple (HTML + JS)
-    Crea un archivo index.html así:
-
-    <!DOCTYPE html>
-    <html lang="es">
-    <head>
-      <meta charset="UTF-8">
-      <title>Recarga Telefónica</title>
-    </head>
-    <body>
-      <h2>Recarga Telefónica</h2>
-      <form id="recargaForm">
-        <label>
-          Número telefónico:
-          <input type="tel" name="numero" required pattern="[0-9]{10,15}">
-        </label><br>
-        <label>
-          Monto de recarga:
-          <input type="number" name="monto" required min="1">
-        </label><br>
-        <button type="submit">Enviar recarga</button>
-      </form>
-      <p id="mensaje"></p>
-      <script>
-        document.getElementById('recargaForm').addEventListener('submit', async function(e) {
-          e.preventDefault();
-          const numero = this.numero.value;
-          const monto = this.monto.value;
-          document.getElementById('mensaje').textContent = "Enviando recarga...";
-          try {
-            const resp = await fetch('https://REGION-PROJECT_ID.cloudfunctions.net/recargaRequest', {
-              method: 'POST',
-              headers: {'Content-Type': 'application/json'},
-              body: JSON.stringify({numero, monto})
-            });
-            if(resp.ok) document.getElementById('mensaje').textContent = "¡Recarga enviada!";
-            else document.getElementById('mensaje').textContent = "Error al enviar recarga.";
-          } catch {
-            document.getElementById('mensaje').textContent = "Error de conexión.";
-          }
-        });
-      </script>
-    </body>
-    </html>
-    Reemplaza https://REGION-PROJECT_ID.cloudfunctions.net/recargaRequest por la URL visible tras desplegar tu función.
+    Prueba el flujo
+    Haz un POST desde el frontend o Postman/curl al endpoint del backend HTTP.
+    Pub/Sub recibirá el mensaje.
+    La Cloud Function procesará automáticamente cualquier mensaje publicado en el tópico.
+    Notas
+    Puedes consultar los logs de la función en Cloud Logging.
 
 
- -------
-
- 7. Despliega el frontend en Cloud Storage (hosting gratuito)
- gsutil mb gs://[BUCKET-NOMBRE-UNICO]
- gsutil cp index.html gs://[BUCKET-NOMBRE-UNICO]
- gsutil web set -m index.html gs://[BUCKET-NOMBRE-UNICO]
- gsutil iam ch allUsers:objectViewer gs://[BUCKET-NOMBRE-UNICO]
- Accede por:
- http://storage.googleapis.com/[BUCKET-NOMBRE-UNICO]/index.html
 
 
+7. cd ~/microservicio_registro_de_ventas
+    Construir y subir la imagen a Artifact Registry:
+
+    gcloud artifacts repositories create microservicios --repository-format=docker --location=us-central1
+    docker build -t us-central1-docker.pkg.dev/PROYECTO/microservicios/registro-venta:latest .
+    docker push us-central1-docker.pkg.dev/PROYECTO/microservicios/registro-venta:latest
+    Cambia PROYECTO por tu ID de proyecto.
+
+    Comandos de despliegue de .yaml
+    kubectl apply -f registro-venta-deployment.yaml
+    kubectl apply -f registro-venta-ingress.yaml
+    Cuando el Ingress esté disponible, obtén la IP con:
+
+    kubectl get ingress
+    Y prueba el servicio (por ejemplo, con curl):
+
+    curl -X POST http://[EXTERNAL_IP]/registrar-venta \
+      -H "Content-Type: application/json" \
+      -d '{"numero":"5551234567","monto":50,"fecha":"2024-07-10T12:00:00Z"}'
+
+    Firestore esta enables desde el primer punto
+
+8. cd ~/microservicio_de_actualizacion_de_saldo
+    Despliega en GKE
+    kubectl apply -f actualizar-saldo-deployment.yaml
+    kubectl apply -f plataforma-recargas-ingress.yaml  # solo si es nuevo o cambió
+    Obtén la IP pública (EXTERNAL-IP):
+
+    kubectl get ingress
+    Prueba el servicio
+    curl -X POST http://[EXTERNAL_IP]/actualizar-saldo \
+      -H "Content-Type: application/json" \
+      -d '{"numero":"5551234567","monto":50}'
+
+9. Otros detalles técnicos:
+    **Pasos básicos:**
+       1. **Crea una cuenta de servicio de Google Cloud:**
+          ```sh
+          gcloud iam service-accounts create microservicios-auth
+          ```
+       2. **Dale permisos solo necesarios (ejemplo: acceso a Firestore):**
+          ```sh
+          gcloud projects add-iam-policy-binding TU_PROYECTO \
+            --member="serviceAccount:microservicios-auth@TU_PROYECTO.iam.gserviceaccount.com" \
+            --role="roles/datastore.user"
+          ```
+       3. **Habilita Workload Identity en tu clúster:**
+          ```sh
+          gcloud container clusters update TU_CLUSTER \
+            --workload-pool=TU_PROYECTO.svc.id.goog
+          ```
+       4. **Crea un ServiceAccount de Kubernetes vinculado:**
+          ```yaml
+          apiVersion: v1
+          kind: ServiceAccount
+          metadata:
+            name: k8s-firestore
+            annotations:
+              iam.gke.io/gcp-service-account: microservicios-auth@TU_PROYECTO.iam.gserviceaccount.com
+          ```
+       5. **Asigna este ServiceAccount a tus pods en el deployment:**
+          ```yaml
+          spec:
+            serviceAccountName: k8s-firestore
+          ```
+       6. **Enlaza las identidades:**
+          ```sh
+          gcloud iam service-accounts add-iam-policy-binding microservicios-auth@TU_PROYECTO.iam.gserviceaccount.com \
+            --role roles/iam.workloadIdentityUser \
+            --member "serviceAccount:TU_PROYECTO.svc.id.goog[default/k8s-firestore]"
+
+    ## 2. **Observabilidad: Cloud Logging y Monitoring**
+
+    **Por defecto:**
+    - **Todos los logs** de tus pods, Cloud Functions y Cloud Run se envían automáticamente a **Cloud Logging**.
+    - **Métricas** de uso, errores y tráfico se envían a **Cloud Monitoring**.
+
+    **¿Qué debes hacer?**
+    - Añade logs personalizados en tus apps usando `console.log` (Node.js) o el equivalente en otros lenguajes.
+    - Puedes crear dashboards y alertas en Cloud Monitoring.
+
+    **Accede desde la consola:**
+    - [Cloud Logging](https://console.cloud.google.com/logs)
+    - [Cloud Monitoring](https://console.cloud.google.com/monitoring)
+
+    ## 3. **Uso eficiente del nivel gratuito**
+
+    - **GKE Autopilot:** 1 clúster gratis, suficiente para microservicios pequeños. No uses nodos grandes ni cargas pesadas.
+    - **Firestore:** Hasta 1GB de almacenamiento gratis (usa documentos compactos).
+    - **Cloud Functions:** Hasta 2 millones de invocaciones gratis (usa para funciones de backend asíncrono).
+    - **Pub/Sub:** Hasta 10GB de mensajes gratis.
+    - **Cloud Run:** Hasta 2 millones de invocaciones gratis y 360,000 GB-segundos/mes.
+
+    **Tips:**
+    - Elimina recursos que no uses.
+    - Usa colecciones separadas en Firestore en vez de muchos proyectos.
+    - Observa el uso en la consola de facturación.
+    - Evita loops automáticos y verifica que tus triggers Pub/Sub o Cloud Functions no generen invocaciones inesperadas.
+
+    ---
+
+    ## 4. **Resumen de buenas prácticas**
+
+    - **Desacoplamiento:** Usa Pub/Sub y microservicios independientes.
+    - **Seguridad:** Workload Identity, no claves embebidas.
+    - **Escalabilidad y resiliencia:** GKE Autopilot, Cloud Functions, Cloud Run.
+    - **Observabilidad:** Usa Cloud Logging y Monitoring, crea alertas si quieres.
+    - **Ahorro:** Mantente en la capa gratuita, revisa consumo en la consola.
+
+
+
+/
+        ├── frontend/
+        │   └── index.html
+├── cloud-functions/
+        │   ├── recargaRequest/
+        │   └── procesarRecarga/
+        ├── registro-venta/
+        │   ├── index.js
+│   ├── Dockerfile
+│   └── deployment.yaml
+├── actualizar-saldo/
+        │   ├── index.js
+│   ├── Dockerfile
+│   └── deployment.yaml
+├── docs/
+        │   └── diagrama.png
+└── README.md
 
 

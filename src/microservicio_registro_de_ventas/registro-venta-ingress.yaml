@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: registro-venta-ingress
+  annotations:
+    kubernetes.io/ingress.class: "gce"
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /registrar-venta
+            pathType: Prefix
+            backend:
+              service:
+                name: registro-venta
+                port:
+                  number: 80

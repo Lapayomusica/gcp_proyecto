@@ -1,0 +1,7 @@
+{
+  "name": "actualizar-saldo",
+  "dependencies": {
+    "express": "^4.17.1",
+    "@google-cloud/firestore": "^7.0.0"
+  }
+}

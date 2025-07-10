@@ -1,0 +1,6 @@
+{
+  "name": "procesar-recarga",
+  "dependencies": {
+    "@google-cloud/firestore": "^7.0.0"
+  }
+}

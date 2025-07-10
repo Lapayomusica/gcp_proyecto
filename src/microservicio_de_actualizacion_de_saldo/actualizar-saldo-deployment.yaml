@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: actualizar-saldo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: actualizar-saldo
+  template:
+    metadata:
+      labels:
+        app: actualizar-saldo
+    spec:
+      containers:
+        - name: actualizar-saldo
+          image: us-central1-docker.pkg.dev/PROYECTO/microservicios/actualizar-saldo:latest
+          ports:
+            - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: actualizar-saldo
+spec:
+  selector:
+    app: actualizar-saldo
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
