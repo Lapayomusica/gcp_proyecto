@@ -16,7 +16,7 @@ gcloud pubsub topics create recargas
 git clone https://github.com/Lapayomusica/gcp_proyecto.git
 
 
-4. cd ~/fronted
+4. cd ~/gcp_proyecto/fronted
      Frontend simple (HTML + JS) (NOTA: ESTO DEBE ESTAR ARRIBA REVISAR)
 
      Despliega el frontend en Cloud Storage (hosting gratuito)
@@ -30,7 +30,7 @@ git clone https://github.com/Lapayomusica/gcp_proyecto.git
      http://storage.googleapis.com/[BUCKET-NOMBRE-UNICO]/index.html
 
 5. Cloud Function HTTP para recibir recargas (frontend → backend)
-    cd ~/cloud-functions_recarga_request
+    cd ~/gcp_proyecto/cloud-functions_recarga_request
 
     Despliegue en Cloud Run:
     Construye y sube la imagen:
@@ -44,7 +44,7 @@ git clone https://github.com/Lapayomusica/gcp_proyecto.git
 
 
 6. Cloud Function backend (procesa la recarga y guarda en Firestore)
-cd ~/microservicio_procesar_recarga
+cd ~/gcp_proyecto/microservicio_procesar_recarga
   Despliegue
   gcloud functions deploy procesarRecarga \
     --runtime nodejs20 \
@@ -62,7 +62,7 @@ cd ~/microservicio_procesar_recarga
 
 
 
-7. cd ~/microservicio_registro_de_ventas
+7. cd ~/gcp_proyecto/microservicio_registro_de_ventas
     Construir y subir la imagen a Artifact Registry:
 
     gcloud artifacts repositories create microservicios --repository-format=docker --location=us-central1
@@ -84,7 +84,7 @@ cd ~/microservicio_procesar_recarga
 
     Firestore esta enables desde el primer punto
 
-8. cd ~/microservicio_de_actualizacion_de_saldo
+8. cd ~/gcp_proyecto/microservicio_de_actualizacion_de_saldo
     Despliega en GKE
     kubectl apply -f actualizar-saldo-deployment.yaml
     kubectl apply -f plataforma-recargas-ingress.yaml  # solo si es nuevo o cambió
