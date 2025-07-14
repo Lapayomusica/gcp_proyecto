@@ -10,6 +10,7 @@ gcloud config set compute/region us-central1
 
 # Habilita las APIs necesarias
 gcloud services enable cloudfunctions.googleapis.com pubsub.googleapis.com firestore.googleapis.com
+OJO: habilitar API y al Artifact
 
 2. Crear el Topic de Pub/Sub
 gcloud pubsub topics create recargas
@@ -63,12 +64,12 @@ AHORA AL PARECER TIENE QUE SER CON DOCKERFILE POR LO QUE SE DEBE AGREGAR EL Dock
                
                # Construye y sube la imagen
                docker build -t recarga-backend:latest .
-               docker tag recarga-backend:latest us-central1-docker.pkg.dev/MI_PROYECTO/microservicios/recarga-backend:latest
-               docker push us-central1-docker.pkg.dev/MI_PROYECTO/microservicios/recarga-backend:latest
+               docker tag recarga-backend:latest us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/recarga-backend:latest
+               docker push us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/recarga-backend:latest
                
                # Despliega en Cloud Run
                gcloud run deploy recarga-backend \
-                 --image us-central1-docker.pkg.dev/MI_PROYECTO/microservicios/recarga-backend:latest \
+                 --image us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/recarga-backend:latest \
                  --platform managed \
                  --region us-central1 \
                  --allow-unauthenticated
@@ -96,7 +97,7 @@ NOTA: ES LO MISMO DECIDIR SI ES UN CLOUD RUN O UN CALOUD FUNCTION (OJO ESO ES IM
 7. cd ../microservicio_registro_de_ventas
     Construir y subir la imagen a Artifact Registry:
 
-    gcloud artifacts repositories create microservicios --repository-format=docker --location=us-central1
+   OJO YA SE CREO: gcloud artifacts repositories create microservicios --repository-format=docker --location=us-central1
     docker build -t us-central1-docker.pkg.dev/PROYECTO/microservicios/registro-venta:latest .
     docker push us-central1-docker.pkg.dev/PROYECTO/microservicios/registro-venta:latest
     Cambia PROYECTO por tu ID de proyecto.
