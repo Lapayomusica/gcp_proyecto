@@ -126,6 +126,15 @@ NOTA: ES LO MISMO DECIDIR SI ES UN CLOUD RUN O UN CALOUD FUNCTION (OJO ESO ES IM
     docker build -t us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/registro-venta:latest .
     docker push us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/registro-venta:latest
     Cambia PROYECTO por tu ID de proyecto.
+gcloud run deploy registro-venta \
+            --image us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/registro-venta:latest \
+            --platform managed \
+            --region us-central1 \
+            --allow-unauthenticated
+Crear tu Kubernetes
+gcloud container clusters create recarga-saldo-cluster  --zone=us-central1-a  --num-nodes=1  --machine-type=e2-medium
+gcloud container clusters get-credentials recarga-saldo-cluster --zone=us-central1-a
+Verificar el permiso, o puedes hacerlo por el CLI
 
     Comandos de despliegue de .yaml
     kubectl apply -f registro-venta-deployment.yaml
