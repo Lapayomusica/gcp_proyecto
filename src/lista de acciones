@@ -123,8 +123,8 @@ NOTA: ES LO MISMO DECIDIR SI ES UN CLOUD RUN O UN CALOUD FUNCTION (OJO ESO ES IM
     Construir y subir la imagen a Artifact Registry:
 
    OJO YA SE CREO: gcloud artifacts repositories create microservicios --repository-format=docker --location=us-central1
-    docker build -t us-central1-docker.pkg.dev/PROYECTO/microservicios/registro-venta:latest .
-    docker push us-central1-docker.pkg.dev/PROYECTO/microservicios/registro-venta:latest
+    docker build -t us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/registro-venta:latest .
+    docker push us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/registro-venta:latest
     Cambia PROYECTO por tu ID de proyecto.
 
     Comandos de despliegue de .yaml
