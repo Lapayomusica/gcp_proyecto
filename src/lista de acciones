@@ -63,6 +63,7 @@ AHORA AL PARECER TIENE QUE SER CON DOCKERFILE POR LO QUE SE DEBE AGREGAR EL Dock
                gcloud auth configure-docker us-central1-docker.pkg.dev
                
                # Construye y sube la imagen
+               npm install cors (TBD)
                docker build -t recarga-backend:latest .
                docker tag recarga-backend:latest us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/recarga-backend:latest
                docker push us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/recarga-backend:latest
