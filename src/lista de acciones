@@ -1,28 +1,26 @@
 #1. Creación del proyecto y activación de APIs
 
-# (Opcional) Crea un proyecto nuevo o selecciona uno existente
-gcloud projects create [ID_DEL_PROYECTO]
-gcloud config set project [ID_DEL_PROYECTO]
-PROJECT_ID=$(gcloud config get-value project)
-
-gcloud config set compute/zone us-central1-a
-gcloud config set compute/region us-central1
-
-# Habilita las APIs necesarias
-gcloud services enable cloudfunctions.googleapis.com pubsub.googleapis.com firestore.googleapis.com
-OJO: habilitar API y al Artifact
+     # (Opcional) Crea un proyecto nuevo o selecciona uno existente
+     gcloud projects create [ID_DEL_PROYECTO]
+     gcloud config set project [ID_DEL_PROYECTO]
+     PROJECT_ID=$(gcloud config get-value project)
+     
+     gcloud config set compute/zone us-central1-a
+     gcloud config set compute/region us-central1
+     
+     # Habilita las APIs necesarias
+     gcloud services enable cloudfunctions.googleapis.com pubsub.googleapis.com firestore.googleapis.com
+     Luego va pedir habilitar  Artifact
 
 2. Crear el Topic de Pub/Sub
-gcloud pubsub topics create recargas
-
----------------
+     gcloud pubsub topics create recargas
 
 3. Clone the repo con archivos necesarios
-git clone https://github.com/Lapayomusica/gcp_proyecto.git
+     git clone https://github.com/Lapayomusica/gcp_proyecto.git
 
 
 4. cd gcp_proyecto/src/frontend
-     Frontend simple (HTML + JS) (NOTA: ESTO DEBE ESTAR ARRIBA REVISAR)
+     Frontend simple (HTML + JS) 
 
      Despliega el frontend en Cloud Storage (hosting gratuito)
 
@@ -37,130 +35,112 @@ git clone https://github.com/Lapayomusica/gcp_proyecto.git
 5. Cloud Function HTTP para recibir recargas (frontend → backend)
     cd ../cloud-functions_recarga_request
 
-    Despliegue en Cloud Run:
-    Construye y sube la imagen
-
-    gcloud builds submit --tag gcr.io/$PROJECT_ID/recarga-backend
-    Despliega en Cloud Run:
-    gcloud run deploy recarga-backend \
-      --image gcr.io/PROYECTO/recarga-backend \
-      --platform managed \
-      --region us-central1 \
-      --allow-unauthenticated
-
-AHORA AL PARECER TIENE QUE SER CON DOCKERFILE POR LO QUE SE DEBE AGREGAR EL Dockerfile y seguir estos pasos:
-               Dockerfile
-                    FROM node:20
-                    WORKDIR /usr/src/app
-                    COPY package*.json ./
-                    RUN npm install
-                    COPY . .
-                    CMD ["node", "index.js"]
-               # (Solo la primera vez) Crea el repositorio en Artifact Registry
-               gcloud artifacts repositories create microservicios --repository-format=docker --location=us-central1
-               
-               # Configura autenticación Docker
-               gcloud auth configure-docker us-central1-docker.pkg.dev
-               
-               # Construye y sube la imagen
-               npm install cors (TBD)
-               docker build -t recarga-backend:latest .
-               docker tag recarga-backend:latest us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/recarga-backend:latest
-               docker push us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/recarga-backend:latest
-               
-               # Despliega en Cloud Run
-               gcloud run deploy recarga-backend \
-                 --image us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/recarga-backend:latest \
-                 --platform managed \
-                 --region us-central1 \
+     # (Solo la primera vez) Crea el repositorio en Artifact Registry
+     gcloud artifacts repositories create microservicios --repository-format=docker --location=us-central1
+     
+     # Configura autenticación Docker
+     gcloud auth configure-docker us-central1-docker.pkg.dev
+     
+     # Construye y sube la imagen
+     npm install cors (TBD)
+     docker build -t recarga-backend:latest .
+     docker tag recarga-backend:latest us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/recarga-backend:latest
+     docker push us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/recarga-backend:latest
+     
+     # Despliega en Cloud Run
+     gcloud run deploy recarga-backend \
+       --image us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/recarga-backend:latest \
+       --platform managed \
+       --region us-central1 \
                  --allow-unauthenticated
 
 6. Cloud Function backend (procesa la recarga y guarda en Firestore)
 cd ../microservicio_procesar_recarga
-  Despliegue
-  gcloud functions deploy procesarRecarga \
-    --runtime nodejs20 \
-    --region=us-central1 \
-    --trigger-topic=recargas \
-    --entry-point=procesarRecarga
-          # Crear suscripcion
-          gcloud pubsub subscriptions create recarga-run-sub --topic=recargas
-          # Configura autenticación Docker
-          gcloud auth configure-docker us-central1-docker.pkg.dev
-          
-          # Construye y sube la imagen
-          docker build -t procesar-recarga:latest .
-          docker tag procesar-recarga:latest us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/procesar-recarga:latest
-          docker push us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/procesar-recarga:latest
-          
-          # Despliega en Cloud Run
-          gcloud run deploy procesar-recarga \
-            --image us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/procesar-recarga:latest \
-            --platform managed \
-            --region us-central1 \
-            --allow-unauthenticated
 
-          Ve a IAM & Admin > IAM.
-          Busca la cuenta de servicio que usa Cloud Run y verificar que tiene los isguientes roles:.
-          "Pub/Sub Subscriber"
-          "Cloud Datastore User" (este rol da acceso a Firestore en modo Datastore)
-          Guarda los cambios.
+     # Crear suscripcion
+     gcloud pubsub subscriptions create recarga-run-sub --topic=recargas
 
-          Verificar que Firestore y PubSUb esten habilitado en el proyecto que es
+     # Configura autenticación Docker
+     gcloud auth configure-docker us-central1-docker.pkg.dev
+     
+     # Construye y sube la imagen
+     docker build -t procesar-recarga:latest .
+     docker tag procesar-recarga:latest us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/procesar-recarga:latest
+     docker push us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/procesar-recarga:latest
+     
+     # Despliega en Cloud Run
+     gcloud run deploy procesar-recarga \
+       --image us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/procesar-recarga:latest \
+       --platform managed \
+       --region us-central1 \
+       --allow-unauthenticated
 
-    Prueba el flujo
-    Haz un POST desde el frontend o Postman/curl al endpoint del backend HTTP.
-    Pub/Sub recibirá el mensaje.
-    La Cloud Function procesará automáticamente cualquier mensaje publicado en el tópico.
-    Notas
-    Puedes consultar los logs de la función en Cloud Logging.
+     Permiso de las cuentas:
+     Ve a IAM & Admin > IAM.
+     Busca la cuenta de servicio que usa Cloud Run y verificar que tiene los isguientes roles:.
+     "Pub/Sub Subscriber"
+     "Cloud Datastore User" (este rol da acceso a Firestore en modo Datastore)
+     Guarda los cambios.
 
-NOTA: ES LO MISMO DECIDIR SI ES UN CLOUD RUN O UN CALOUD FUNCTION (OJO ESO ES IMPORTANTE)
+     Verificar que Firestore y PubSub esten habilitado en el proyecto que es, para asegura incluí la referencia al project_is al momento de utilizarlos.
 
-
+     Prueba el flujo
+     Haz un POST desde el frontend o Postman/curl al endpoint del backend HTTP.
+     Pub/Sub recibirá el mensaje.
+     La Cloud Function procesará automáticamente cualquier mensaje publicado en el tópico.
+     Notas
+     Puedes consultar los logs de la función en Cloud Logging.
 
 7. cd ../microservicio_registro_de_ventas
     Construir y subir la imagen a Artifact Registry:
 
-   OJO YA SE CREO: gcloud artifacts repositories create microservicios --repository-format=docker --location=us-central1
+    Solo sino se ha creado: gcloud artifacts repositories create microservicios --repository-format=docker --location=us-central1
     docker build -t us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/registro-venta:latest .
     docker push us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/registro-venta:latest
-    Cambia PROYECTO por tu ID de proyecto.
-gcloud run deploy registro-venta \
+
+     gcloud run deploy registro-venta \
             --image us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/registro-venta:latest \
             --platform managed \
             --region us-central1 \
             --allow-unauthenticated
-Crear tu Kubernetes
-gcloud container clusters create recarga-saldo-cluster  --zone=us-central1-a  --num-nodes=1  --machine-type=e2-medium
-gcloud container clusters get-credentials recarga-saldo-cluster --zone=us-central1-a
-Verificar el permiso, o puedes hacerlo por el CLI
+     
+     Crear tu Kubernetes
+     gcloud container clusters create recarga-saldo-cluster  --zone=us-central1-a  --num-nodes=1  --machine-type=e2-medium
+     gcloud container clusters get-credentials recarga-saldo-cluster --zone=us-central1-a
+     Verificar el permiso la cuenta por default no tiene todos los permisos o puedes hacerlo por el CLI
 
-    Comandos de despliegue de .yaml
-    kubectl apply -f registro-venta-deployment.yaml
-    kubectl apply -f registro-venta-ingress.yaml
-    Cuando el Ingress esté disponible, obtén la IP con:
+     Comandos de despliegue de .yaml
+     kubectl apply -f registro-venta-deployment.yaml
+     kubectl apply -f registro-venta-ingress.yaml
 
-    kubectl get ingress
-    Y prueba el servicio (por ejemplo, con curl):
+     Cuando el Ingress esté disponible, se obtienen la IPs con:
+     kubectl get pods
+     kubectl get svc
+     kubectl get ingress
 
-    curl -X POST http://[EXTERNAL_IP]/registrar-venta \
+     Y prueba el servicio (por ejemplo, con curl):
+
+     curl -X POST http://[EXTERNAL_IP]/registrar-venta \
       -H "Content-Type: application/json" \
       -d '{"numero":"5551234567","monto":50,"fecha":"2024-07-10T12:00:00Z"}'
-
-    Firestore esta enables desde el primer punto
+     
+     Se debe recordar que Firestore esta habilitado desde el primer punto, pero es bueno confirmar que este en el proyecto actual.
 
 8. cd ../microservicio_de_actualizacion_de_saldo
 
     docker build -t us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/actualizar-saldo:latest .
     docker push us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/actualizar-saldo:latest
 
-    Despliega en GKE
+    Despliega en GKE qu e ya fue creado en el punto anterior:
     kubectl apply -f actualizar-saldo-deployment.yaml
     kubectl apply -f plataforma-recargas-ingress.yaml  # solo si es nuevo o cambió
-    Obtén la IP pública (EXTERNAL-IP):
 
-    kubectl get ingress
+     
+     kubectl get pods
+     kubectl get svc
+     Obtén la IP pública (EXTERNAL-IP):
+     kubectl get ingress
+
     Prueba el servicio
     curl -X POST http://[EXTERNAL_IP]/actualizar-saldo \
       -H "Content-Type: application/json" \
