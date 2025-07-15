@@ -83,6 +83,22 @@ cd ../microservicio_procesar_recarga
     --region=us-central1 \
     --trigger-topic=recargas \
     --entry-point=procesarRecarga
+               # Crear suscripcion
+               gcloud pubsub subscriptions create recarga-run-sub --topic=recargas
+               # Configura autenticación Docker
+               gcloud auth configure-docker us-central1-docker.pkg.dev
+               
+               # Construye y sube la imagen
+               docker build -t procesar-recarga:latest .
+               docker tag procesar-recarga:latest us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/procesar-recarga:latest
+               docker push us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/procesar-recarga:latest
+               
+               # Despliega en Cloud Run
+               gcloud run deploy procesar-recarga \
+                 --image us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/procesar-recarga:latest \
+                 --platform managed \
+                 --region us-central1 \
+                 --allow-unauthenticated
 
     Prueba el flujo
     Haz un POST desde el frontend o Postman/curl al endpoint del backend HTTP.
