@@ -151,6 +151,10 @@ Verificar el permiso, o puedes hacerlo por el CLI
     Firestore esta enables desde el primer punto
 
 8. cd ../microservicio_de_actualizacion_de_saldo
+
+    docker build -t us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/actualizar-saldo:latest .
+    docker push us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/actualizar-saldo:latest
+
     Despliega en GKE
     kubectl apply -f actualizar-saldo-deployment.yaml
     kubectl apply -f plataforma-recargas-ingress.yaml  # solo si es nuevo o cambió
