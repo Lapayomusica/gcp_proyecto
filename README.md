@@ -46,3 +46,4 @@ Es el almacén central de la plataforma, donde se registran ventas, recargas y s
 5. **Backend API** → (POST) → **Actualización de Saldo** → **Firestore**
 
 ---
+![Diagrama de arquitectura](diagrama_de_arquitecura.drawio)
