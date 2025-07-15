@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: registro-venta
-          image: us-central1-docker.pkg.dev/PROYECTO/microservicios/registro-venta:latest
+          image: us-central1-docker.pkg.dev/MIPROYECTO/microservicios/registro-venta:latest
           ports:
             - containerPort: 8080
 ---
