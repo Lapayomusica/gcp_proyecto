@@ -1,6 +1,6 @@
-#1. Creación del proyecto y activación de APIs
+# 1. Creación del proyecto y activación de APIs
 
-     # (Opcional) Crea un proyecto nuevo o selecciona uno existente
+     ## (Opcional) Crea un proyecto nuevo o selecciona uno existente
      gcloud projects create [ID_DEL_PROYECTO]
      gcloud config set project [ID_DEL_PROYECTO]
      PROJECT_ID=$(gcloud config get-value project)
@@ -12,14 +12,14 @@
      gcloud services enable cloudfunctions.googleapis.com pubsub.googleapis.com firestore.googleapis.com
      Luego va pedir habilitar  Artifact
 
-2. Crear el Topic de Pub/Sub
+# 2. Crear el Topic de Pub/Sub
      gcloud pubsub topics create recargas
 
-3. Clone the repo con archivos necesarios
+# 3. Clone the repo con archivos necesarios
      git clone https://github.com/Lapayomusica/gcp_proyecto.git
 
 
-4. cd gcp_proyecto/src/frontend
+# 4. cd gcp_proyecto/src/frontend
      Frontend simple (HTML + JS) 
 
      Despliega el frontend en Cloud Storage (hosting gratuito)
@@ -32,29 +32,29 @@
      Accede por:
      http://storage.googleapis.com/$PROJECT_ID-bucket-html-01/index.html
 
-5. Cloud Function HTTP para recibir recargas (frontend → backend)
+# 5. Cloud Function HTTP para recibir recargas (frontend → backend)
     cd ../cloud-functions_recarga_request
 
-     # (Solo la primera vez) Crea el repositorio en Artifact Registry
+     (Solo la primera vez) Crea el repositorio en Artifact Registry
      gcloud artifacts repositories create microservicios --repository-format=docker --location=us-central1
      
-     # Configura autenticación Docker
+     Configura autenticación Docker
      gcloud auth configure-docker us-central1-docker.pkg.dev
      
-     # Construye y sube la imagen
+     Construye y sube la imagen
      npm install cors (TBD)
      docker build -t recarga-backend:latest .
      docker tag recarga-backend:latest us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/recarga-backend:latest
      docker push us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/recarga-backend:latest
      
-     # Despliega en Cloud Run
+     Despliega en Cloud Run
      gcloud run deploy recarga-backend \
        --image us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/recarga-backend:latest \
        --platform managed \
        --region us-central1 \
                  --allow-unauthenticated
 
-6. Cloud Function backend (procesa la recarga y guarda en Firestore)
+# 6. Cloud Function backend (procesa la recarga y guarda en Firestore)
 cd ../microservicio_procesar_recarga
 
      # Crear suscripcion
@@ -91,7 +91,7 @@ cd ../microservicio_procesar_recarga
      Notas
      Puedes consultar los logs de la función en Cloud Logging.
 
-7. cd ../microservicio_registro_de_ventas
+# 7. cd ../microservicio_registro_de_ventas
     Construir y subir la imagen a Artifact Registry:
 
     Solo sino se ha creado: gcloud artifacts repositories create microservicios --repository-format=docker --location=us-central1
@@ -126,7 +126,7 @@ cd ../microservicio_procesar_recarga
      
      Se debe recordar que Firestore esta habilitado desde el primer punto, pero es bueno confirmar que este en el proyecto actual.
 
-8. cd ../microservicio_de_actualizacion_de_saldo
+# 8. cd ../microservicio_de_actualizacion_de_saldo
 
     docker build -t us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/actualizar-saldo:latest .
     docker push us-central1-docker.pkg.dev/$PROJECT_ID/microservicios/actualizar-saldo:latest
@@ -146,52 +146,14 @@ cd ../microservicio_procesar_recarga
       -H "Content-Type: application/json" \
       -d '{"numero":"5551234567","monto":50}'
 
-9. Otros detalles técnicos:
-    **Pasos básicos:**
-       1. **Crea una cuenta de servicio de Google Cloud:**
-          ```sh
-          gcloud iam service-accounts create microservicios-auth
-          ```
-       2. **Dale permisos solo necesarios (ejemplo: acceso a Firestore):**
-          ```sh
-          gcloud projects add-iam-policy-binding TU_PROYECTO \
-            --member="serviceAccount:microservicios-auth@TU_PROYECTO.iam.gserviceaccount.com" \
-            --role="roles/datastore.user"
-          ```
-       3. **Habilita Workload Identity en tu clúster:**
-          ```sh
-          gcloud container clusters update TU_CLUSTER \
-            --workload-pool=TU_PROYECTO.svc.id.goog
-          ```
-       4. **Crea un ServiceAccount de Kubernetes vinculado:**
-          ```yaml
-          apiVersion: v1
-          kind: ServiceAccount
-          metadata:
-            name: k8s-firestore
-            annotations:
-              iam.gke.io/gcp-service-account: microservicios-auth@TU_PROYECTO.iam.gserviceaccount.com
-          ```
-       5. **Asigna este ServiceAccount a tus pods en el deployment:**
-          ```yaml
-          spec:
-            serviceAccountName: k8s-firestore
-          ```
-       6. **Enlaza las identidades:**
-          ```sh
-          gcloud iam service-accounts add-iam-policy-binding microservicios-auth@TU_PROYECTO.iam.gserviceaccount.com \
-            --role roles/iam.workloadIdentityUser \
-            --member "serviceAccount:TU_PROYECTO.svc.id.goog[default/k8s-firestore]"
-
-    ## 2. **Observabilidad: Cloud Logging y Monitoring**
+# 9. Otros detalles técnicos considerados:
+ 
+    ## 1. **Observabilidad: Cloud Logging y Monitoring**
 
     **Por defecto:**
     - **Todos los logs** de tus pods, Cloud Functions y Cloud Run se envían automáticamente a **Cloud Logging**.
-    - **Métricas** de uso, errores y tráfico se envían a **Cloud Monitoring**.
-
-    **¿Qué debes hacer?**
-    - Añade logs personalizados en tus apps usando `console.log` (Node.js) o el equivalente en otros lenguajes.
-    - Puedes crear dashboards y alertas en Cloud Monitoring.
+    - **Métricas de uso, errores y tráfico se envían a **Cloud Monitoring**.
+    - Pub/Sub, FiresStore, Kubernets Logs
 
     **Accede desde la consola:**
     - [Cloud Logging](https://console.cloud.google.com/logs)
@@ -221,24 +183,5 @@ cd ../microservicio_procesar_recarga
     - **Observabilidad:** Usa Cloud Logging y Monitoring, crea alertas si quieres.
     - **Ahorro:** Mantente en la capa gratuita, revisa consumo en la consola.
 
-
-
-/
-        ├── frontend/
-        │   └── index.html
-├── cloud-functions/
-        │   ├── recargaRequest/
-        │   └── procesarRecarga/
-        ├── registro-venta/
-        │   ├── index.js
-│   ├── Dockerfile
-│   └── deployment.yaml
-├── actualizar-saldo/
-        │   ├── index.js
-│   ├── Dockerfile
-│   └── deployment.yaml
-├── docs/
-        │   └── diagrama.png
-└── README.md
 
 
