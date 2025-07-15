@@ -2,7 +2,9 @@ const express = require('express');
 const {PubSub} = require('@google-cloud/pubsub');
 const pubsub = new PubSub();
 const app = express();
+const cors = require('cors');
 app.use(express.json());
+app.use(cors());
 
 app.post('/recarga', async (req, res) => {
   const {numero, monto} = req.body;
